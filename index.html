@@ -1,96 +1,149 @@
 <!DOCTYPE html>
-<html lang="fa">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>برنامه چت</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f3f3f3;
-            margin: 0;
-            padding: 0;
-        }
-        .chat-container {
-            max-width: 600px;
-            margin: 20px auto;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-        .chat-messages {
-            margin-bottom: 20px;
-            max-height: 300px;
-            overflow-y: scroll;
-        }
-        .chat-message {
-            padding: 10px;
-            border-bottom: 1px solid #eee;
-            position: relative;
-        }
-        .time {
-            font-size: 0.8em;
-            color: gray;
-            position: absolute;
-            right: 10px;
-            bottom: 10px;
-        }
-        .reaction {
-            cursor: pointer;
-            margin-left: 10px;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Supabase Chat</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      background: #121212;
+      color: #fff;
+    }
+    .centered, .chat-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    .chat-container {
+      display: none;
+    }
+    .message {
+      background: #2c2c2c;
+      padding: 10px;
+      border-radius: 6px;
+      margin-bottom: 10px;
+      width: 100%;
+    }
+    input, button {
+      padding: 10px;
+      border-radius: 6px;
+      border: none;
+      margin: 5px;
+    }
+    input {
+      width: 300px;
+    }
+    button {
+      background: #1e88e5;
+      color: white;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
-    <div class="chat-container">
-        <button onclick="googleLogin()">ورود با گوگل</button>
-        <div class="chat-messages" id="messages">
-            <!-- پیام‌ها در این قسمت نمایش داده می‌شوند -->
-        </div>
-        <input type="text" id="message-input" placeholder="پیام خود را وارد کنید...">
-        <button onclick="sendMessage()">ارسال</button>
+  <div class="centered" id="login">
+    <h1>Supabase Chat</h1>
+    <button id="login-btn">Sign in with Google</button>
+  </div>
+
+  <div class="chat-container" id="chat">
+    <h2>Chat Room</h2>
+    <div id="messages" style="width: 100%; max-width: 600px;"></div>
+    <div style="display: flex;">
+      <input id="messageInput" placeholder="Type a message" />
+      <button id="sendBtn">Send</button>
     </div>
-    
-    <script>
-        function googleLogin() {
-            alert("در حال ورود با گوگل...");
-        }
+    <button id="logoutBtn" style="margin-top: 20px;">Logout</button>
+  </div>
 
-        function sendMessage() {
-            const input = document.getElementById('message-input');
-            const messages = document.getElementById('messages');
-            const messageText = input.value;
+  <script>
+    const supabase = supabase.createClient(
+      'https://rmzvhvucmkyfuyuobuxu.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtenZodnVjbWt5ZnV5dW9idXh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNDkyMzEsImV4cCI6MjA1OTYyNTIzMX0.LQgMxCWORLt8LiN-9J3-mmshQdOcEaevHqwLhWnJKPA'
+    );
 
-            if (messageText.trim()) {
-                const messageDiv = document.createElement('div');
-                messageDiv.className = 'chat-message';
-                messageDiv.innerHTML = `
-                    ${messageText}
-                    <span class="reaction" onclick="reactToMessage(this)">❤️</span>
-                    <span class="reaction" onclick="reactToMessage(this)">😂</span>
-                    <span class="reaction" onclick="reactToMessage(this)">😲</span>
-                    <button onclick="replyMessage('${messageText}')">ریپلای</button>
-                    <button onclick="deleteMessage(this)">حذف</button>
-                    <div class="time">${new Date().toLocaleTimeString()}</div>
-                `;
-                messages.appendChild(messageDiv);
-                input.value = '';
-            }
-        }
+    const loginDiv = document.getElementById('login');
+    const chatDiv = document.getElementById('chat');
+    const loginBtn = document.getElementById('login-btn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const sendBtn = document.getElementById('sendBtn');
+    const messageInput = document.getElementById('messageInput');
+    const messagesDiv = document.getElementById('messages');
 
-        function reactToMessage(element) {
-            alert(`شما به پیام با ${element.innerHTML} واکنش نشان دادید!`);
-        }
+    let currentUser = null;
 
-        function replyMessage(message) {
-            const input = document.getElementById('message-input');
-            input.value = `ریپلای به: ${message}`;
-        }
+    loginBtn.onclick = async () => {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+      });
+      if (error) console.error('Login error:', error.message);
+    };
 
-        function deleteMessage(element) {
-            const message = element.parentElement;
-            message.remove();
-        }
-    </script>
+    logoutBtn.onclick = async () => {
+      await supabase.auth.signOut();
+      location.reload();
+    };
+
+    const loadMessages = async () => {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .order('timestamp', { ascending: true });
+
+      if (data) {
+        messagesDiv.innerHTML = '';
+        data.forEach((msg) => {
+          const div = document.createElement('div');
+          div.className = 'message';
+          div.textContent = `${msg.name}: ${msg.text}`;
+          messagesDiv.appendChild(div);
+        });
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      }
+    };
+
+    sendBtn.onclick = async () => {
+      const text = messageInput.value.trim();
+      if (!text || !currentUser) return;
+
+      await supabase.from('messages').insert([
+        {
+          text,
+          name: currentUser.user.user_metadata.full_name || 'Anon',
+          uid: currentUser.user.id,
+          timestamp: Date.now(),
+        },
+      ]);
+
+      messageInput.value = '';
+      loadMessages();
+    };
+
+    const checkAuth = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        currentUser = data.session;
+        loginDiv.style.display = 'none';
+        chatDiv.style.display = 'flex';
+        loadMessages();
+      }
+    };
+
+    // Reload on auth change (OAuth redirect)
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        currentUser = session;
+        loginDiv.style.display = 'none';
+        chatDiv.style.display = 'flex';
+        loadMessages();
+      }
+    });
+
+    checkAuth();
+  </script>
 </body>
 </html>

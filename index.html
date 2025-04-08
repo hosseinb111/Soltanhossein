@@ -4,8 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Supabase Chat</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
+    /* استایل‌های قبلی با بهبودهای کوچک */
     body {
       font-family: sans-serif;
       margin: 0;
@@ -27,6 +28,7 @@
       border-radius: 6px;
       margin-bottom: 10px;
       width: 100%;
+      word-break: break-word;
     }
     input, button {
       padding: 10px;
@@ -36,11 +38,22 @@
     }
     input {
       width: 300px;
+      background: #2c2c2c;
+      color: white;
     }
     button {
       background: #1e88e5;
       color: white;
       cursor: pointer;
+      transition: opacity 0.3s;
+    }
+    button:hover {
+      opacity: 0.8;
+    }
+    .loading {
+      display: none;
+      color: #888;
+      margin: 10px;
     }
   </style>
 </head>
@@ -48,24 +61,28 @@
   <div class="centered" id="login">
     <h1>Supabase Chat</h1>
     <button id="login-btn">Sign in with Google</button>
+    <div class="loading" id="login-loading">Loading...</div>
   </div>
 
   <div class="chat-container" id="chat">
     <h2>Chat Room</h2>
-    <div id="messages" style="width: 100%; max-width: 600px;"></div>
-    <div style="display: flex;">
+    <div id="messages" style="width: 100%; max-width: 600px; max-height: 60vh; overflow-y: auto;"></div>
+    <div style="display: flex; width: 100%; max-width: 600px;">
       <input id="messageInput" placeholder="Type a message" />
       <button id="sendBtn">Send</button>
     </div>
     <button id="logoutBtn" style="margin-top: 20px;">Logout</button>
+    <div class="loading" id="chat-loading">Loading messages...</div>
   </div>
 
   <script>
+    // Initialize Supabase
     const supabase = supabase.createClient(
       'https://rmzvhvucmkyfuyuobuxu.supabase.co',
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtenZodnVjbWt5ZnV5dW9idXh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNDkyMzEsImV4cCI6MjA1OTYyNTIzMX0.LQgMxCWORLt8LiN-9J3-mmshQdOcEaevHqwLhWnJKPA'
     );
 
+    // DOM Elements
     const loginDiv = document.getElementById('login');
     const chatDiv = document.getElementById('chat');
     const loginBtn = document.getElementById('login-btn');
@@ -73,14 +90,26 @@
     const sendBtn = document.getElementById('sendBtn');
     const messageInput = document.getElementById('messageInput');
     const messagesDiv = document.getElementById('messages');
+    const loginLoading = document.getElementById('login-loading');
+    const chatLoading = document.getElementById('chat-loading');
 
     let currentUser = null;
+    let messagesSubscription = null;
+
+    // Auth Functions
+    const showLoading = (element) => element.style.display = 'block';
+    const hideLoading = (element) => element.style.display = 'none';
 
     loginBtn.onclick = async () => {
+      showLoading(loginLoading);
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
       });
-      if (error) console.error('Login error:', error.message);
+      if (error) {
+        alert('Login failed: ' + error.message);
+        console.error(error);
+      }
+      hideLoading(loginLoading);
     };
 
     logoutBtn.onclick = async () => {
@@ -88,13 +117,17 @@
       location.reload();
     };
 
+    // Message Functions
     const loadMessages = async () => {
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .order('timestamp', { ascending: true });
+      showLoading(chatLoading);
+      try {
+        const { data, error } = await supabase
+          .from('messages')
+          .select('*')
+          .order('timestamp', { ascending: true });
 
-      if (data) {
+        if (error) throw error;
+
         messagesDiv.innerHTML = '';
         data.forEach((msg) => {
           const div = document.createElement('div');
@@ -103,47 +136,86 @@
           messagesDiv.appendChild(div);
         });
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      } catch (error) {
+        alert('Error loading messages: ' + error.message);
+      } finally {
+        hideLoading(chatLoading);
       }
+    };
+
+    const setupRealtime = () => {
+      messagesSubscription = supabase
+        .channel('public:messages')
+        .on('postgres_changes', 
+          { event: 'INSERT', schema: 'public', table: 'messages' },
+          () => loadMessages()
+        )
+        .subscribe();
     };
 
     sendBtn.onclick = async () => {
       const text = messageInput.value.trim();
-      if (!text || !currentUser) return;
+      if (!text) return alert('Please enter a message');
+      if (!currentUser) return alert('Please login first');
 
-      await supabase.from('messages').insert([
-        {
+      try {
+        const { error } = await supabase.from('messages').insert([{
           text,
-          name: currentUser.user.user_metadata.full_name || 'Anon',
+          name: currentUser.user.user_metadata.full_name || 'Anonymous',
           uid: currentUser.user.id,
           timestamp: Date.now(),
-        },
-      ]);
+        }]);
 
-      messageInput.value = '';
-      loadMessages();
-    };
-
-    const checkAuth = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        currentUser = data.session;
-        loginDiv.style.display = 'none';
-        chatDiv.style.display = 'flex';
-        loadMessages();
+        if (error) throw error;
+        messageInput.value = '';
+      } catch (error) {
+        alert('Error sending message: ' + error.message);
       }
     };
 
-    // Reload on auth change (OAuth redirect)
+    // Auth State Management
+    const checkAuth = async () => {
+      showLoading(loginLoading);
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) throw error;
+
+        if (data.session) {
+          currentUser = data.session;
+          loginDiv.style.display = 'none';
+          chatDiv.style.display = 'flex';
+          await loadMessages();
+          setupRealtime();
+        }
+      } catch (error) {
+        alert('Auth error: ' + error.message);
+      } finally {
+        hideLoading(loginLoading);
+      }
+    };
+
+    // Event Listeners
+    messageInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendBtn.click();
+    });
+
     supabase.auth.onAuthStateChange((event, session) => {
-      if (session) {
+      if (event === 'SIGNED_IN' && session) {
         currentUser = session;
         loginDiv.style.display = 'none';
         chatDiv.style.display = 'flex';
         loadMessages();
+        setupRealtime();
       }
     });
 
+    // Initialize
     checkAuth();
+
+    // Cleanup
+    window.addEventListener('beforeunload', () => {
+      if (messagesSubscription) messagesSubscription.unsubscribe();
+    });
   </script>
 </body>
 </html>

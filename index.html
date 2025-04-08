@@ -1,23 +1,96 @@
 <!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <title>برنامه چت</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f3f3f3;
+            margin: 0;
+            padding: 0;
+        }
+        .chat-container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .chat-messages {
+            margin-bottom: 20px;
+            max-height: 300px;
+            overflow-y: scroll;
+        }
+        .chat-message {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            position: relative;
+        }
+        .time {
+            font-size: 0.8em;
+            color: gray;
+            position: absolute;
+            right: 10px;
+            bottom: 10px;
+        }
+        .reaction {
+            cursor: pointer;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <button onclick="googleLogin()">ورود با گوگل</button>
+        <div class="chat-messages" id="messages">
+            <!-- پیام‌ها در این قسمت نمایش داده می‌شوند -->
+        </div>
+        <input type="text" id="message-input" placeholder="پیام خود را وارد کنید...">
+        <button onclick="sendMessage()">ارسال</button>
+    </div>
+    
+    <script>
+        function googleLogin() {
+            alert("در حال ورود با گوگل...");
+        }
 
-<html>
+        function sendMessage() {
+            const input = document.getElementById('message-input');
+            const messages = document.getElementById('messages');
+            const messageText = input.value;
 
-  <head>
+            if (messageText.trim()) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'chat-message';
+                messageDiv.innerHTML = `
+                    ${messageText}
+                    <span class="reaction" onclick="reactToMessage(this)">❤️</span>
+                    <span class="reaction" onclick="reactToMessage(this)">😂</span>
+                    <span class="reaction" onclick="reactToMessage(this)">😲</span>
+                    <button onclick="replyMessage('${messageText}')">ریپلای</button>
+                    <button onclick="deleteMessage(this)">حذف</button>
+                    <div class="time">${new Date().toLocaleTimeString()}</div>
+                `;
+                messages.appendChild(messageDiv);
+                input.value = '';
+            }
+        }
 
-    <title>Hello, World!</title>
+        function reactToMessage(element) {
+            alert(`شما به پیام با ${element.innerHTML} واکنش نشان دادید!`);
+        }
 
-    <link rel="stylesheet" href="styles.css" />
+        function replyMessage(message) {
+            const input = document.getElementById('message-input');
+            input.value = `ریپلای به: ${message}`;
+        }
 
-  </head>
-
-  <body>
-
-      <h1 class="title">غنبری عمه خراب! </h1>
-
-      <p id="currentTime"></p>
-
-      <script src="script.js"></script>
-
-  </body>
-
+        function deleteMessage(element) {
+            const message = element.parentElement;
+            message.remove();
+        }
+    </script>
+</body>
 </html>

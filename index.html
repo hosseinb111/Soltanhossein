@@ -3,33 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Supabase Chat App</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <title>Supabase Chat</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.5/+esm"></script>
   <style>
-    :root {
-      --bg-color: #ffffff;
-      --text-color: #000000;
-      --input-bg: #f0f0f0;
-      --message-bg: #e0e0e0;
-      --btn-bg: #1e88e5;
-      --btn-text: #ffffff;
-    }
-    [data-theme="dark"] {
-      --bg-color: #121212;
-      --text-color: #ffffff;
-      --input-bg: #222222;
-      --message-bg: #2c2c2c;
-      --btn-bg: #1e88e5;
-      --btn-text: #ffffff;
-    }
-    * {
-      box-sizing: border-box;
-      font-family: Arial, sans-serif;
-    }
     body {
       margin: 0;
-      background-color: var(--bg-color);
-      color: var(--text-color);
+      background: #121212;
+      color: white;
+      font-family: Arial, sans-serif;
     }
     .centered {
       display: flex;
@@ -39,9 +20,9 @@
       flex-direction: column;
     }
     .btn {
-      background: var(--btn-bg);
+      background: #1e88e5;
       border: none;
-      color: var(--btn-text);
+      color: white;
       padding: 12px 24px;
       border-radius: 8px;
       font-size: 18px;
@@ -53,11 +34,6 @@
       height: 100vh;
       padding: 20px;
     }
-    .chat-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
     .chat-messages {
       flex: 1;
       overflow-y: auto;
@@ -65,13 +41,13 @@
       padding: 10px;
       border: 1px solid #333;
       border-radius: 10px;
-      background-color: var(--input-bg);
+      background-color: #222;
     }
     .message {
       padding: 8px;
       margin-bottom: 10px;
       border-radius: 6px;
-      background: var(--message-bg);
+      background: #333;
     }
     .chat-input {
       display: flex;
@@ -83,94 +59,67 @@
       border-radius: 6px;
       border: 1px solid #ccc;
       margin-right: 10px;
-      background-color: var(--input-bg);
-      color: var(--text-color);
     }
     .chat-input button {
-      background: var(--btn-bg);
+      background: #1e88e5;
       border: none;
-      color: var(--btn-text);
+      color: white;
       padding: 10px 20px;
       border-radius: 6px;
       cursor: pointer;
     }
-    #search {
-      margin: 10px 0;
-      padding: 10px;
-      border-radius: 6px;
-      width: 100%;
-      border: none;
-      background-color: var(--input-bg);
-      color: var(--text-color);
-    }
   </style>
 </head>
-<body data-theme="dark">
+<body>
   <div class="centered" id="login">
-    <h1>Welcome to Chat App</h1>
+    <h1>Welcome to Supabase Chat</h1>
     <button class="btn" id="google-login">Sign in with Google</button>
   </div>
 
   <div class="chat-container" id="chat">
-    <div class="chat-header">
-      <h2>Chat Room</h2>
-      <div>
-        <button class="btn" id="toggle-theme">Toggle Theme</button>
-        <button class="btn" id="logout">Logout</button>
-      </div>
-    </div>
-    <input type="text" id="search" placeholder="Search messages..." />
+    <h2>Chat Room</h2>
     <div class="chat-messages" id="messages"></div>
     <div class="chat-input">
       <input type="text" id="messageInput" placeholder="Type a message" />
       <button id="send">Send</button>
     </div>
+    <button class="btn" id="logout">Logout</button>
   </div>
 
-  <script>
-    const supabaseUrl = "https://rmzvhvucmkyfuyuobuxu.supabase.co";
-    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtenZodnVjbWt5ZnV5dW9idXh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNDkyMzEsImV4cCI6MjA1OTYyNTIzMX0.LQgMxCWORLt8LiN-9J3-mmshQdOcEaevHqwLhWnJKPA";
-    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+  <script type="module">
+    const supabaseUrl = 'https://rmzvhvucmkyfuyuobuxu.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtenZodnVjbWt5ZnV5dW9idXh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNDkyMzEsImV4cCI6MjA1OTYyNTIzMX0.LQgMxCWORLt8LiN-9J3-mmshQdOcEaevHqwLhWnJKPA';
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
     const loginDiv = document.getElementById('login');
     const chatDiv = document.getElementById('chat');
     const loginBtn = document.getElementById('google-login');
     const logoutBtn = document.getElementById('logout');
-    const toggleThemeBtn = document.getElementById('toggle-theme');
     const messagesDiv = document.getElementById('messages');
     const messageInput = document.getElementById('messageInput');
     const sendBtn = document.getElementById('send');
-    const searchInput = document.getElementById('search');
 
-    let currentUser = null;
+    let user = null;
 
     loginBtn.onclick = async () => {
       const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+        provider: 'google'
       });
-      if (error) alert(error.message);
+      if (error) console.error('Login error:', error.message);
     };
 
     logoutBtn.onclick = async () => {
       await supabase.auth.signOut();
-      window.location.reload();
-    };
-
-    toggleThemeBtn.onclick = () => {
-      const body = document.body;
-      const current = body.getAttribute('data-theme');
-      body.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+      location.reload();
     };
 
     supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session) {
-        currentUser = session.user;
+      if (session && session.user) {
+        user = session.user;
         loginDiv.style.display = 'none';
         chatDiv.style.display = 'flex';
         loadMessages();
-      } else {
-        loginDiv.style.display = 'flex';
-        chatDiv.style.display = 'none';
       }
     });
 
@@ -180,51 +129,38 @@
         .select('*')
         .order('timestamp', { ascending: true });
 
-      if (!error) {
-        messagesDiv.innerHTML = '';
-        data.forEach((msg) => {
+      messagesDiv.innerHTML = '';
+      if (data) {
+        data.forEach(msg => {
           const div = document.createElement('div');
           div.className = 'message';
           div.textContent = `${msg.name}: ${msg.text}`;
           messagesDiv.appendChild(div);
         });
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      } else {
+        console.error('Load error:', error.message);
       }
     }
 
-    sendBtn.onclick = sendMessage;
-    messageInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') sendMessage();
-    });
-
-    async function sendMessage() {
+    sendBtn.onclick = async () => {
       const text = messageInput.value.trim();
-      if (!text || !currentUser) return;
-
+      if (!text) return;
       const { error } = await supabase.from('messages').insert([
         {
-          text: text,
-          name: currentUser.user_metadata.full_name,
-          uid: currentUser.id,
+          text,
+          name: user.user_metadata.full_name || 'Unknown',
+          uid: user.id,
           timestamp: Date.now()
         }
       ]);
-
       if (!error) {
         messageInput.value = '';
         loadMessages();
       } else {
-        alert(error.message);
+        console.error('Send error:', error.message);
       }
-    }
-
-    searchInput.addEventListener('input', () => {
-      const term = searchInput.value.toLowerCase();
-      const messages = document.querySelectorAll('.message');
-      messages.forEach(msg => {
-        msg.style.display = msg.textContent.toLowerCase().includes(term) ? 'block' : 'none';
-      });
-    });
+    };
   </script>
 </body>
 </html>

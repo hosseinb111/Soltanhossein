@@ -76,11 +76,13 @@
   </div>
 
   <script>
+    console.log('Supabase Chat script started.');
+
     // Initialize Supabase
-    const supabase = supabase.createClient(
-      'https://rmzvhvucmkyfuyuobuxu.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtenZodnVjbWt5ZnV5dW9idXh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNDkyMzEsImV4cCI6MjA1OTYyNTIzMX0.LQgMxCWORLt8LiN-9J3-mmshQdOcEaevHqwLhWnJKPA'
-    );
+    const supabaseUrl = 'https://rmzvhvucmkyfuyuobuxu.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtenZodnVjbWt5ZnV5dW9idXh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNDkyMzEsImV4cCI6MjA1OTYyNTIzMX0.LQgMxCWORLt8LiN-9J3-mmshQdOcEaevHqwLhWnJKPA';
+    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+    console.log('Supabase client initialized:', supabase);
 
     // DOM Elements
     const loginDiv = document.getElementById('login');
@@ -97,37 +99,53 @@
     let messagesSubscription = null;
 
     // Auth Functions
-    const showLoading = (element) => element.style.display = 'block';
-    const hideLoading = (element) => element.style.display = 'none';
+    const showLoading = (element) => {
+      element.style.display = 'block';
+      console.log('Loading shown for:', element.id);
+    };
+    const hideLoading = (element) => {
+      element.style.display = 'none';
+      console.log('Loading hidden for:', element.id);
+    };
 
     loginBtn.onclick = async () => {
       showLoading(loginLoading);
+      console.log('Login button clicked.');
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
       });
       if (error) {
         alert('Login failed: ' + error.message);
-        console.error(error);
+        console.error('Google login error:', error);
+      } else {
+        console.log('Google login initiated successfully.');
       }
       hideLoading(loginLoading);
     };
 
     logoutBtn.onclick = async () => {
+      console.log('Logout button clicked.');
       await supabase.auth.signOut();
+      console.log('Logged out.');
       location.reload();
     };
 
     // Message Functions
     const loadMessages = async () => {
       showLoading(chatLoading);
+      console.log('Loading messages...');
       try {
         const { data, error } = await supabase
           .from('messages')
           .select('*')
           .order('timestamp', { ascending: true });
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error loading messages:', error);
+          throw error;
+        }
 
+        console.log('Messages loaded:', data);
         messagesDiv.innerHTML = '';
         data.forEach((msg) => {
           const div = document.createElement('div');
@@ -144,30 +162,46 @@
     };
 
     const setupRealtime = () => {
+      console.log('Setting up realtime subscription for messages.');
       messagesSubscription = supabase
         .channel('public:messages')
-        .on('postgres_changes', 
+        .on('postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'messages' },
-          () => loadMessages()
+          (payload) => {
+            console.log('Realtime INSERT event received:', payload);
+            loadMessages();
+          }
         )
-        .subscribe();
+        .subscribe((status) => console.log('Realtime subscription status:', status));
     };
 
     sendBtn.onclick = async () => {
       const text = messageInput.value.trim();
-      if (!text) return alert('Please enter a message');
-      if (!currentUser) return alert('Please login first');
+      if (!text) {
+        alert('Please enter a message');
+        return;
+      }
+      if (!currentUser) {
+        alert('Please login first');
+        return;
+      }
 
+      console.log('Send button clicked. Message:', text);
       try {
+        const nameToSend = currentUser?.user?.user_metadata?.full_name || 'Anonymous';
         const { error } = await supabase.from('messages').insert([{
           text,
-          name: currentUser.user.user_metadata.full_name || 'Anonymous',
+          name: nameToSend,
           uid: currentUser.user.id,
           timestamp: Date.now(),
         }]);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error sending message:', error);
+          throw error;
+        }
         messageInput.value = '';
+        console.log('Message sent successfully.');
       } catch (error) {
         alert('Error sending message: ' + error.message);
       }
@@ -176,16 +210,26 @@
     // Auth State Management
     const checkAuth = async () => {
       showLoading(loginLoading);
+      console.log('Checking authentication state...');
       try {
         const { data, error } = await supabase.auth.getSession();
-        if (error) throw error;
+        if (error) {
+          console.error('Error getting session:', error);
+          throw error;
+        }
 
-        if (data.session) {
+        console.log('Session data:', data);
+        if (data?.session) {
           currentUser = data.session;
+          console.log('User is logged in:', currentUser);
           loginDiv.style.display = 'none';
           chatDiv.style.display = 'flex';
           await loadMessages();
           setupRealtime();
+        } else {
+          console.log('No active session found.');
+          loginDiv.style.display = 'flex';
+          chatDiv.style.display = 'none';
         }
       } catch (error) {
         alert('Auth error: ' + error.message);
@@ -196,16 +240,31 @@
 
     // Event Listeners
     messageInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') sendBtn.click();
+      if (e.key === 'Enter') {
+        console.log('Enter key pressed in message input.');
+        sendBtn.click();
+      }
     });
 
-    supabase.auth.onAuthStateChange((event, session) => {
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session);
       if (event === 'SIGNED_IN' && session) {
         currentUser = session;
+        console.log('User signed in:', currentUser);
         loginDiv.style.display = 'none';
         chatDiv.style.display = 'flex';
-        loadMessages();
+        await loadMessages();
         setupRealtime();
+      } else if (event === 'SIGNED_OUT') {
+        console.log('User signed out.');
+        currentUser = null;
+        loginDiv.style.display = 'flex';
+        chatDiv.style.display = 'none';
+        if (messagesSubscription) {
+          console.log('Unsubscribing from realtime messages.');
+          messagesSubscription.unsubscribe();
+          messagesSubscription = null;
+        }
       }
     });
 
@@ -214,7 +273,11 @@
 
     // Cleanup
     window.addEventListener('beforeunload', () => {
-      if (messagesSubscription) messagesSubscription.unsubscribe();
+      console.log('Before unload event.');
+      if (messagesSubscription) {
+        console.log('Unsubscribing from realtime messages before unload.');
+        messagesSubscription.unsubscribe();
+      }
     });
   </script>
 </body>

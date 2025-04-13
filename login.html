@@ -1,0 +1,108 @@
+<!DOCTYPE html><html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login Page</title>
+  <style>
+    :root {
+      --bg-light: #ffffff;
+      --text-light: #000000;
+      --bg-dark: #111827;
+      --text-dark: #f3f4f6;
+    }[data-theme="light"] {
+  background-color: var(--bg-light);
+  color: var(--text-light);
+}
+
+[data-theme="dark"] {
+  background-color: var(--bg-dark);
+  color: var(--text-dark);
+}
+
+body {
+  font-family: sans-serif;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.container {
+  text-align: center;
+}
+
+input {
+  padding: 10px;
+  font-size: 16px;
+  margin-bottom: 20px;
+}
+
+button {
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.theme-toggle {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+footer {
+  position: absolute;
+  bottom: 10px;
+  font-size: 14px;
+}
+
+  </style>
+</head>
+<body>
+  <button class="theme-toggle" onclick="toggleTheme()">&#9788;</button>
+  <div class="container">
+    <h1>Login</h1>
+    <input type="text" id="username" placeholder="Choose a username" /> <br>
+    <button onclick="loginWithGoogle()">Sign in with Google</button>
+  </div>
+  <footer>Made with love by Hossein</footer>  <script>
+    function toggleTheme() {
+      const currentTheme = document.documentElement.getAttribute("data-theme");
+      document.documentElement.setAttribute("data-theme", currentTheme === "light" ? "dark" : "light");
+    }
+
+    async function loginWithGoogle() {
+      const username = document.getElementById('username').value;
+      if (!username) {
+        alert("Please choose a username first.");
+        return;
+      }
+
+      // Supabase config
+      const SUPABASE_URL = "https://rmzvhvucmkyfuyuobuxu.supabase.co";
+      const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtenZodnVjbWt5ZnV5dW9idXh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNDkyMzEsImV4cCI6MjA1OTYyNTIzMX0.LQgMxCWORLt8LiN-9J3-mmshQdOcEaevHqwLhWnJKPA";
+
+      const { createClient } = window.supabase;
+      const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin + '/chat-app.html'
+        }
+      });
+
+      if (error) {
+        alert("Login error: " + error.message);
+      } else {
+        localStorage.setItem('username', username);
+      }
+    }
+  </script>  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script></body>
+</html>

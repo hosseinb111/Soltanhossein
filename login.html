@@ -1,4 +1,5 @@
-<!DOCTYPE html><html lang="en" data-theme="light">
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,59 +10,52 @@
       --text-light: #000000;
       --bg-dark: #111827;
       --text-dark: #f3f4f6;
-    }[data-theme="light"] {
-  background-color: var(--bg-light);
-  color: var(--text-light);
-}
-
-[data-theme="dark"] {
-  background-color: var(--bg-dark);
-  color: var(--text-dark);
-}
-
-body {
-  font-family: sans-serif;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-}
-
-.container {
-  text-align: center;
-}
-
-input {
-  padding: 10px;
-  font-size: 16px;
-  margin-bottom: 20px;
-}
-
-button {
-  padding: 10px 20px;
-  font-size: 16px;
-  cursor: pointer;
-}
-
-.theme-toggle {
-  position: absolute;
-  top: 15px;
-  right: 15px;
-  background: none;
-  border: none;
-  font-size: 20px;
-  cursor: pointer;
-}
-
-footer {
-  position: absolute;
-  bottom: 10px;
-  font-size: 14px;
-}
-
+    }
+    [data-theme="light"] {
+      background-color: var(--bg-light);
+      color: var(--text-light);
+    }
+    [data-theme="dark"] {
+      background-color: var(--bg-dark);
+      color: var(--text-dark);
+    }
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .container {
+      text-align: center;
+    }
+    input {
+      padding: 10px;
+      font-size: 16px;
+      margin-bottom: 20px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .theme-toggle {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+    }
+    footer {
+      position: absolute;
+      bottom: 10px;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
@@ -69,40 +63,74 @@ footer {
   <div class="container">
     <h1>Login</h1>
     <input type="text" id="username" placeholder="Choose a username" /> <br>
-    <button onclick="loginWithGoogle()">Sign in with Google</button>
+    <button id="loginBtn">Sign in with Google</button>
+    <div id="userInfo" style="margin-top: 20px;"></div>
   </div>
-  <footer>Made with love by Hossein</footer>  <script>
-    function toggleTheme() {
-      const currentTheme = document.documentElement.getAttribute("data-theme");
-      document.documentElement.setAttribute("data-theme", currentTheme === "light" ? "dark" : "light");
-    }
+  <footer>Made with love by Hossein</footer>
 
-    async function loginWithGoogle() {
-      const username = document.getElementById('username').value;
+  <!-- Firebase SDKs -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInWithPopup, GoogleAuthProvider, updateProfile } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // Your Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyBmFDk4igb0Nnt-01gEW-JmgB-IiMQy3-Y",
+      authDomain: "login-74d24.firebaseapp.com",
+      projectId: "login-74d24",
+      storageBucket: "login-74d24.firebasestorage.app",
+      messagingSenderId: "254360644365",
+      appId: "1:254360644365:web:9e17c186056a1119311e44",
+      measurementId: "G-8DT7FN09FZ"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const provider = new GoogleAuthProvider();
+
+    // Theme toggle
+    window.toggleTheme = function() {
+      const current = document.documentElement.getAttribute("data-theme");
+      document.documentElement.setAttribute("data-theme", current === "light" ? "dark" : "light");
+    };
+
+    // Login flow
+    document.getElementById('loginBtn').addEventListener('click', async () => {
+      const username = document.getElementById('username').value.trim();
       if (!username) {
         alert("Please choose a username first.");
         return;
       }
-
-      // Supabase config
-      const SUPABASE_URL = "https://rmzvhvucmkyfuyuobuxu.supabase.co";
-      const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtenZodnVjbWt5ZnV5dW9idXh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNDkyMzEsImV4cCI6MjA1OTYyNTIzMX0.LQgMxCWORLt8LiN-9J3-mmshQdOcEaevHqwLhWnJKPA";
-
-      const { createClient } = window.supabase;
-      const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin + '/chat-app.html'
-        }
-      });
-
-      if (error) {
-        alert("Login error: " + error.message);
-      } else {
-        localStorage.setItem('username', username);
+      try {
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+        // Update Firebase user profile with custom username
+        await updateProfile(user, { displayName: username });
+        // Save user data to Firestore
+        await setDoc(doc(db, 'users', user.uid), {
+          uid: user.uid,
+          username: username,
+          email: user.email,
+          name: user.displayName,
+          photoURL: user.photoURL,
+          lastLogin: new Date()
+        });
+        // Display user info
+        document.getElementById('userInfo').innerHTML = `
+          <p><strong>Username:</strong> ${username}</p>
+          <p><strong>Name:</strong> ${user.displayName}</p>
+          <p><strong>Email:</strong> ${user.email}</p>
+          <img src="${user.photoURL}" width="100" />
+        `;
+        console.log('User signed in:', user);
+      } catch (error) {
+        console.error('Login error:', error);
+        alert('Login error: ' + error.message);
       }
-    }
-  </script>  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script></body>
+    });
+  </script>
+</body>
 </html>

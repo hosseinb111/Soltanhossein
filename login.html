@@ -56,6 +56,9 @@
       bottom: 10px;
       font-size: 14px;
     }
+    .logout {
+      margin-top: 20px;
+    }
   </style>
 </head>
 <body>
@@ -65,13 +68,14 @@
     <input type="text" id="username" placeholder="Choose a username" /> <br>
     <button id="loginBtn">Sign in with Google</button>
     <div id="userInfo" style="margin-top: 20px;"></div>
+    <button id="logoutBtn" class="logout" style="display:none;">Logout</button>
   </div>
   <footer>Made with love by Hossein</footer>
 
   <!-- Firebase SDKs -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInWithPopup, GoogleAuthProvider, updateProfile } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getAuth, signInWithPopup, signOut, onAuthStateChanged, GoogleAuthProvider, updateProfile } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     // Your Firebase config
@@ -85,20 +89,21 @@
       measurementId: "G-8DT7FN09FZ"
     };
 
-    // Initialize Firebase
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
     const provider = new GoogleAuthProvider();
 
-    // Theme toggle
     window.toggleTheme = function() {
       const current = document.documentElement.getAttribute("data-theme");
       document.documentElement.setAttribute("data-theme", current === "light" ? "dark" : "light");
     };
 
-    // Login flow
-    document.getElementById('loginBtn').addEventListener('click', async () => {
+    const loginBtn = document.getElementById('loginBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const userInfo = document.getElementById('userInfo');
+
+    loginBtn.addEventListener('click', async () => {
       const username = document.getElementById('username').value.trim();
       if (!username) {
         alert("Please choose a username first.");
@@ -107,9 +112,7 @@
       try {
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
-        // Update Firebase user profile with custom username
         await updateProfile(user, { displayName: username });
-        // Save user data to Firestore
         await setDoc(doc(db, 'users', user.uid), {
           uid: user.uid,
           username: username,
@@ -118,17 +121,41 @@
           photoURL: user.photoURL,
           lastLogin: new Date()
         });
-        // Display user info
-        document.getElementById('userInfo').innerHTML = `
-          <p><strong>Username:</strong> ${username}</p>
-          <p><strong>Name:</strong> ${user.displayName}</p>
-          <p><strong>Email:</strong> ${user.email}</p>
-          <img src="${user.photoURL}" width="100" />
-        `;
-        console.log('User signed in:', user);
+        showUserInfo(user);
       } catch (error) {
         console.error('Login error:', error);
         alert('Login error: ' + error.message);
+      }
+    });
+
+    logoutBtn.addEventListener('click', async () => {
+      try {
+        await signOut(auth);
+        userInfo.innerHTML = '';
+        logoutBtn.style.display = 'none';
+        loginBtn.style.display = 'inline-block';
+        document.getElementById('username').style.display = 'inline-block';
+      } catch (error) {
+        console.error('Logout error:', error);
+        alert('Logout error: ' + error.message);
+      }
+    });
+
+    function showUserInfo(user) {
+      userInfo.innerHTML = `
+        <p><strong>Username:</strong> ${user.displayName}</p>
+        <p><strong>Name:</strong> ${user.displayName}</p>
+        <p><strong>Email:</strong> ${user.email}</p>
+        <img src="${user.photoURL}" width="100" />
+      `;
+      logoutBtn.style.display = 'inline-block';
+      loginBtn.style.display = 'none';
+      document.getElementById('username').style.display = 'none';
+    }
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        showUserInfo(user);
       }
     });
   </script>

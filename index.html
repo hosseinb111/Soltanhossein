@@ -1,9 +1,299 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta http-equiv="refresh" content="0; URL='login.html'" />
-  </head>
-  <body>
-    <p>Redirecting to login...</p>
-  </body>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modern Chat App</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com "></script>
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js "></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js "></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js "></script>
+  <style>
+    .chat-container {
+      max-height: calc(100vh - 160px);
+    }
+    .message-time {
+      font-size: 0.65rem;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-gray-900 via-purple-900 to-violet-600 text-white min-h-screen">
+  <!-- Firebase Configuration -->
+  <script>
+    // Firebase configuration with your credentials
+    const firebaseConfig = {
+      apiKey: "AIzaSyDMU9MsmNr0OfKDVB0Hyb8KYZElD-NPiC0",
+      authDomain: "chatapp-e21b7.firebaseapp.com",
+      databaseURL: "https://chatapp-e21b7-default-rtdb.firebaseio.com ",
+      projectId: "chatapp-e21b7",
+      storageBucket: "chatapp-e21b7.firebasestorage.app",
+      messagingSenderId: "56407109760",
+      appId: "1:56407109760:web:08df47c54221dc4dabf665",
+      measurementId: "G-Q5G798ZVT6"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const auth = firebase.auth();
+  </script>
+
+  <!-- Username Setup Screen -->
+  <div id="usernameScreen" class="flex items-center justify-center min-h-screen">
+    <div class="bg-black/40 backdrop-blur-md p-8 rounded-xl shadow-lg max-w-sm w-full mx-auto border border-white/10">
+      <h2 class="text-2xl font-bold mb-6 text-center">Welcome to Chat</h2>
+      
+      <input type="text" id="usernameInput" placeholder="Choose a username"
+        class="w-full px-4 py-3 rounded-lg bg-black/30 border border-white/10 focus:outline-none focus:border-purple-500 mb-4" />
+      
+      <button onclick="setUsername()" 
+        class="w-full py-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition-colors">
+        Continue
+      </button>
+    </div>
+  </div>
+
+  <!-- Chat Interface -->
+  <div id="chatScreen" class="hidden flex flex-col min-h-screen">
+    <!-- Header -->
+    <header class="bg-black/30 backdrop-blur-md border-b border-white/10 sticky top-0 z-10">
+      <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="text-purple-400">
+            <path d="M20 8L12 16L4 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <h1 class="font-bold">ChatRoom</h1>
+        </div>
+        
+        <div class="flex items-center space-x-4">
+          <span id="currentUsername" class="text-sm text-purple-300"></span>
+          <button onclick="logout()" 
+            class="py-2 px-4 rounded-full hover:bg-white/10 transition-colors">
+            Change User
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Messages Area -->
+    <main class="container mx-auto px-4 py-6 flex-1 flex flex-col overflow-hidden">
+      <div id="messagesContainer" class="chat-container overflow-y-auto mb-4 space-y-4 pb-4">
+        <!-- Messages will be dynamically inserted here -->
+      </div>
+
+      <!-- Message Input Form -->
+      <form id="messageForm" class="mb-4">
+        <div class="flex items-center space-x-2">
+          <input type="text" id="messageInput" 
+            placeholder="Type a message..." 
+            class="flex-1 px-4 py-3 rounded-lg bg-black/30 border border-white/10 focus:outline-none focus:border-purple-500" />
+          <button type="submit" 
+            class="py-3 px-6 rounded-lg bg-purple-600 hover:bg-purple-700 font-medium transition-colors">
+            Send
+          </button>
+        </div>
+      </form>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-black/30 backdrop-blur-sm border-t border-white/10 py-4 text-center text-sm text-gray-500">
+      <p>© 2023 ChatApp | Built with Firebase & TailwindCSS</p>
+    </footer>
+  </div>
+
+  <!-- JavaScript Logic -->
+  <script>
+    const usernameScreen = document.getElementById('usernameScreen');
+    const chatScreen = document.getElementById('chatScreen');
+    const messagesContainer = document.getElementById('messagesContainer');
+    const messageForm = document.getElementById('messageForm');
+    const messageInput = document.getElementById('messageInput');
+    const usernameInput = document.getElementById('usernameInput');
+    const currentUsername = document.getElementById('currentUsername');
+
+    let currentUser = null;
+    let currentUsernameValue = '';
+
+    // Check if username exists in localStorage
+    function checkUsername() {
+      const savedUsername = localStorage.getItem('chatUsername');
+      if (savedUsername) {
+        currentUsernameValue = savedUsername;
+        currentUsername.textContent = currentUsernameValue;
+        showChatScreen();
+        setupMessageListener();
+      } else {
+        showUsernameScreen();
+      }
+    }
+
+    // Show username screen
+    function showUsernameScreen() {
+      usernameScreen.classList.remove('hidden');
+      chatScreen.classList.add('hidden');
+    }
+
+    // Show chat screen
+    function showChatScreen() {
+      usernameScreen.classList.add('hidden');
+      chatScreen.classList.remove('hidden');
+    }
+
+    // Set username
+    function setUsername() {
+      const newUsername = usernameInput.value.trim();
+      if (!newUsername) {
+        alert('Please enter a username');
+        return;
+      }
+      currentUsernameValue = newUsername;
+      localStorage.setItem('chatUsername', currentUsernameValue);
+      currentUsername.textContent = currentUsernameValue;
+      showChatScreen();
+      setupMessageListener();
+      
+      // Sign in anonymously
+      firebase.auth().signInAnonymously()
+        .catch((error) => {
+          console.error("Anonymous authentication error:", error);
+        });
+    }
+
+    // Logout function
+    function logout() {
+      localStorage.removeItem('chatUsername');
+      location.reload();
+    }
+
+    // Setup message listener
+    function setupMessageListener() {
+      db.collection("messages")
+        .orderBy("timestamp")
+        .onSnapshot((querySnapshot) => {
+          messagesContainer.innerHTML = "";
+          
+          querySnapshot.forEach((doc) => {
+            const message = doc.data();
+            message.id = doc.id;
+            addMessageToDOM(message);
+          });
+          
+          scrollToBottom();
+        }, (error) => {
+          console.error("Error getting messages:", error);
+        });
+    }
+
+    // Add message to DOM
+    function addMessageToDOM(message) {
+      const messageElement = document.createElement('div');
+      messageElement.className = `flex ${message.username === currentUsernameValue ? 'justify-end' : 'justify-start'}`;
+      
+      messageElement.innerHTML = `
+        <div class="max-w-xs md:max-w-md lg:max-w-lg rounded-lg p-3 ${
+          message.username === currentUsernameValue
+            ? 'bg-purple-700/80 ml-auto'
+            : 'bg-black/30 mr-auto'
+        }">
+          <div class="flex justify-between items-center mb-1">
+            <p class="font-semibold text-sm">${message.username}</p>
+            <span class="message-time text-gray-400">
+              ${formatTime(message.timestamp)}
+            </span>
+          </div>
+          <p class="break-words">${message.text}</p>
+          
+          ${message.userId === (firebase.auth().currentUser?.uid || '') ? `
+            <div class="flex justify-end gap-2 mt-2 text-xs text-gray-300">
+              <button onclick="editMessage('${message.id}', '${message.text}')" 
+                class="hover:text-white transition-colors">
+                Edit
+              </button>
+              <button onclick="deleteMessage('${message.id}')" 
+                class="hover:text-red-400 transition-colors">
+                Delete
+              </button>
+            </div>
+          ` : ''}
+        </div>
+      `;
+      
+      messagesContainer.appendChild(messageElement);
+    }
+
+    // Format timestamp
+    function formatTime(timestamp) {
+      if (!timestamp) return '';
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // Send message
+    messageForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = messageInput.value.trim();
+      if (!text) return;
+
+      const message = {
+        text: text,
+        username: currentUsernameValue,
+        timestamp: new Date(),
+        userId: firebase.auth().currentUser?.uid || null
+      };
+
+      db.collection("messages").add(message)
+        .then(() => {
+          messageInput.value = '';
+        })
+        .catch((error) => {
+          console.error("Error sending message: ", error);
+          alert("Failed to send message");
+        });
+    });
+
+    // Delete message
+    window.deleteMessage = function(id) {
+      db.collection("messages").doc(id).delete()
+        .catch((error) => {
+          console.error("Error deleting message: ", error);
+          alert("Failed to delete message");
+        });
+    }
+
+    // Edit message
+    window.editMessage = function(id, currentText) {
+      const newText = prompt("Edit your message:", currentText);
+      if (newText && newText.trim() !== currentText) {
+        db.collection("messages").doc(id).update({
+          text: newText
+        }).catch((error) => {
+          console.error("Error editing message: ", error);
+          alert("Failed to edit message");
+        });
+      }
+    }
+
+    // Scroll to bottom
+    function scrollToBottom() {
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    // Auth state listener
+    firebase.auth().onAuthStateChanged((user) => {
+      currentUser = user;
+      if (user && !currentUsernameValue) {
+        currentUsernameValue = user.displayName || user.email.split('@')[0];
+        localStorage.setItem('chatUsername', currentUsernameValue);
+        currentUsername.textContent = currentUsernameValue;
+        showChatScreen();
+        setupMessageListener();
+      }
+    });
+
+    // Initialize app
+    document.addEventListener('DOMContentLoaded', checkUsername);
+  </script>
+</body>
 </html>

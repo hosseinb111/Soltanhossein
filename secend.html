@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="""en
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Pizza Order — Demo</title>
+    <style>
+        :root{
+            --accent:#d94b2b;
+            --muted:#666;
+            --bg:#fafafa;
+            --card:#fff;
+            --glass: rgba(255,255,255,0.7);
+            font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+        }
+        html,body{height:100%;margin:0;background:var(--bg);color:#111}
+        header{
+            display:flex;align-items:center;justify-content:space-between;
+            padding:18px 24px;background:linear-gradient(90deg,#fff 0,#fff0 60%);position:sticky;top:0;z-index:10;
+            border-bottom:1px solid #eee;
+        }
+        .brand{display:flex;gap:12px;align-items:center}
+        .logo{
+            width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#ff8a4d);
+            display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:18px;
+            box-shadow:0 2px 8px rgba(0,0,0,0.08);
+        }
+        h1{margin:0;font-size:18px}
+        .location{font-size:13px;color:var(--muted)}
+        .controls{display:flex;gap:12px;align-items:center}
+        .btn{
+            background:var(--accent);color:#fff;border:0;padding:10px 14px;border-radius:8px;cursor:pointer;font-weight:600;
+        }
+        main{display:flex;gap:20px;padding:20px;max-width:1200px;margin:20px auto}
+        .menu{flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
+        .card{background:var(--card);padding:14px;border-radius:12px;box-shadow:0 6px 18px rgba(23,23,23,0.04);display:flex;flex-direction:column}
+        .thumb{height:130px;border-radius:10px;background:#eee;overflow:hidden;display:flex;align-items:center;justify-content:center}
+        .thumb img{width:100%;height:100%;object-fit:cover}
+        .meta{padding-top:10px;display:flex;align-items:center;justify-content:space-between}
+        .title{font-weight:700}
+        .desc{font-size:13px;color:var(--muted);margin-top:6px}
+        .price{font-weight:700;color:var(--accent)}
+        .add{background:#111;color:#fff;border:0;padding:8px 10px;border-radius:8px;cursor:pointer}
+        aside.cart{
+            width:340px;background:linear-gradient(180deg,var(--glass),#fff);backdrop-filter: blur(6px);
+            padding:16px;border-radius:12px;height:fit-content;align-self:flex-start;border:1px solid #eee;
+        }
+        .cart h3{margin:0 0 10px 0}
+        .cart-list{display:flex;flex-direction:column;gap:10px;max-height:360px;overflow:auto;padding-right:6px}
+        .cart-item{display:flex;gap:10px;align-items:center}
+        .cart-item img{width:56px;height:48px;object-fit:cover;border-radius:8px}
+        .qty{display:flex;gap:6px;align-items:center}
+        .qty button{padding:4px 8px;border-radius:6px;border:1px solid #ddd;background:#fff;cursor:pointer}
+        .tot{display:flex;justify-content:space-between;padding-top:12px;font-weight:700;font-size:18px}
+        .checkout{width:100%;margin-top:12px}
+        footer{padding:14px;text-align:center;color:var(--muted);font-size:13px}
+        @media (max-width:900px){
+            main{flex-direction:column;padding:14px}
+            aside.cart{width:100%}
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="brand">
+            <div class="logo">PZ</div>
+            <div>
+                <h1>Pizza Duny — Demo</h1>
+                <div class="location">Deliver to: <strong>Downtown</strong></div>
+            </div>
+        </div>
+        <div class="controls">
+            <button class="btn" id="openCart">View Cart</button>
+        </div>
+    </header>
+
+    <main>
+        <section class="menu" id="menu">
+            <!-- Items populated by JS -->
+        </section>
+
+        <aside class="cart" id="cartPanel" aria-live="polite">
+            <h3>Your Order</h3>
+            <div class="cart-list" id="cartList">
+                <div style="color:var(--muted)">Cart is empty — add pizzas to start your order.</div>
+            </div>
+            <div class="tot"><div>Subtotal</div><div id="subtotal">$0.00</div></div>
+            <button class="btn checkout" id="checkoutBtn">Checkout</button>
+        </aside>
+    </main>
+
+    <footer>Demo ordering page — not affiliated with any real site</footer>
+
+    <script>
+        // Demo menu data (original, not copied)
+        const menuData = [
+            { id: 'm1', name:'Margherita', desc:'Tomato, mozzarella, basil', price:7.99, img:'https://via.placeholder.com/400x300?text=Margherita' },
+            { id: 'm2', name:'Pepperoni', desc:'Classic pepperoni & cheese', price:9.49, img:'https://via.placeholder.com/400x300?text=Pepperoni' },
+            { id: 'm3', name:'Veggie', desc:'Peppers, olives, mushrooms', price:8.99, img:'https://via.placeholder.com/400x300?text=Veggie' },
+            { id: 'm4', name:'BBQ Chicken', desc:'BBQ sauce, chicken, onion', price:10.99, img:'https://via.placeholder.com/400x300?text=BBQ+Chicken' },
+            { id: 'm5', name:'Hawaiian', desc:'Ham & pineapple', price:9.29, img:'https://via.placeholder.com/400x300?text=Hawaiian' },
+            { id: 'm6', name:'Four Cheese', desc:'Mozzarella, parmesan, gorgonzola', price:11.49, img:'https://via.placeholder.com/400x300?text=4+Cheese' }
+        ];
+
+        const menuEl = document.getElementById('menu');
+        const cartListEl = document.getElementById('cartList');
+        const subtotalEl = document.getElementById('subtotal');
+        const cartPanel = document.getElementById('cartPanel');
+        const openCartBtn = document.getElementById('openCart');
+        const checkoutBtn = document.getElementById('checkoutBtn');
+
+        const cart = {};
+
+        function formatPrice(v){ return '$' + v.toFixed(2); }
+
+        function renderMenu(){
+            menuEl.innerHTML = '';
+            menuData.forEach(item=>{
+                const el = document.createElement('article');
+                el.className = 'card';
+                el.innerHTML = `
+                    <div class="thumb"><img src="${item.img}" alt="${item.name}"></div>
+                    <div style="padding-top:8px">
+                        <div class="meta">
+                            <div>
+                                <div class="title">${item.name}</div>
+                                <div class="desc">${item.desc}</div>
+                            </div>
+                            <div style="text-align:right">
+                                <div class="price">${formatPrice(item.price)}</div>
+                                <button class="add" data-id="${item.id}" style="margin-top:8px">Add</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                menuEl.appendChild(el);
+            });
+        }
+
+        function updateCartUI(){
+            cartListEl.innerHTML = '';
+            const keys = Object.keys(cart);
+            if(keys.length === 0){
+                cartListEl.innerHTML = '<div style="color:var(--muted)">Cart is empty — add pizzas to start your order.</div>';
+                subtotalEl.textContent = formatPrice(0);
+                return;
+            }
+            let subtotal = 0;
+            keys.forEach(k=>{
+                const it = cart[k];
+                subtotal += it.qty * it.price;
+                const itemEl = document.createElement('div');
+                itemEl.className = 'cart-item';
+                itemEl.innerHTML = `
+                    <img src="${it.img}" alt="${it.name}">
+                    <div style="flex:1">
+                        <div style="font-weight:700">${it.name}</div>
+                        <div style="font-size:13px;color:var(--muted)">${formatPrice(it.price)} x ${it.qty}</div>
+                    </div>
+                    <div class="qty">
+                        <button data-act="dec" data-id="${k}">-</button>
+                        <div style="min-width:26px;text-align:center">${it.qty}</div>
+                        <button data-act="inc" data-id="${k}">+</button>
+                    </div>
+                `;
+                cartListEl.appendChild(itemEl);
+            });
+            subtotalEl.textContent = formatPrice(subtotal);
+        }
+
+        menuEl.addEventListener('click', e=>{
+            const btn = e.target.closest('button.add');
+            if(!btn) return;
+            const id = btn.dataset.id;
+            const item = menuData.find(m=>m.id===id);
+            if(!item) return;
+            if(!cart[id]) cart[id] = {...item, qty:0};
+            cart[id].qty++;
+            updateCartUI();
+            cartPanel.scrollIntoView({behavior:'smooth'});
+        });
+
+        cartListEl.addEventListener('click', e=>{
+            const btn = e.target.closest('button');
+            if(!btn) return;
+            const id = btn.dataset.id;
+            const act = btn.dataset.act;
+            if(!id || !act) return;
+            if(!cart[id]) return;
+            if(act === 'inc') cart[id].qty++;
+            if(act === 'dec') cart[id].qty--;
+            if(cart[id].qty <= 0) delete cart[id];
+            updateCartUI();
+        });
+
+        openCartBtn.addEventListener('click', ()=>{
+            cartPanel.scrollIntoView({behavior:'smooth'});
+        });
+
+        checkoutBtn.addEventListener('click', ()=>{
+            const keys = Object.keys(cart);
+            if(keys.length === 0){ alert('Your cart is empty. Add something first.'); return; }
+            // Simple demo checkout flow: ask name and address
+            const name = prompt('Name for the order:');
+            if(!name) return;
+            const addr = prompt('Delivery address:');
+            if(!addr) return;
+            // In a real app you'd send to a server. Here just clear cart and show summary.
+            let total = 0;
+            keys.forEach(k => total += cart[k].qty * cart[k].price);
+            cartListEl.innerHTML = `<div style="color:green">Thanks ${name}! Your order (${keys.length} item(s)) totaling ${formatPrice(total)} is placed for delivery to ${addr}.</div>`;
+            subtotalEl.textContent = formatPrice(0);
+            for(const k of keys) delete cart[k];
+        });
+
+        // initial render
+        renderMenu();
+        updateCartUI();
+    </script>
+</body>
+</html>"></html>
